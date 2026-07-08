@@ -210,6 +210,29 @@
     cursor: pointer;
     white-space: nowrap;
   }
+
+  /* Футер с контактами */
+  .footer {
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid #2e3448;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #8b90a0;
+  }
+  .footer a {
+    color: #6c8cff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: color .2s;
+  }
+  .footer a:hover { color: #8fa6ff; text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -222,7 +245,7 @@
   <h1>📸 Уникализатор фотографий</h1>
   <p class="subtitle">Создаёт уникальные копии фото: удаляет метаданные, добавляет невидимый шум, микроповорот, сдвиг цвета и обрезку — визуально фото не отличить от оригинала.</p>
 
-  <div id="dropzone">
+  <div id="dropzone" title="Загрузите сюда исходные фото: перетащите файлы мышью или нажмите, чтобы выбрать. Можно добавить сразу несколько JPG, PNG или WebP. Сами файлы никуда не отправляются — вся обработка идёт прямо в браузере.">
     <div class="icon">🖼️</div>
     <p><b>Перетащи фото сюда</b> или нажми, чтобы выбрать</p>
     <p class="hint">JPG, PNG, WebP — можно сразу много файлов</p>
@@ -230,40 +253,40 @@
   <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple>
 
   <div class="settings">
-    <label>Копий на каждое фото:
+    <label title="Сколько разных уникальных версий создать из каждого загруженного фото. Каждая копия получает свой случайный набор изменений (поворот, шум, обрезка, цвет), поэтому все копии отличаются друг от друга. Например, 5 копий из 3 фото = 15 готовых файлов.">Копий на каждое фото:
       <input type="number" id="copies" min="1" max="50" value="1">
     </label>
-    <label>Сила уникализации:
+    <label title="Насколько сильно менять фото. Чем выше значение, тем заметнее поворот, обрезка краёв, шум и сдвиг цвета — тем «уникальнее» файл для алгоритмов, но тем сильнее возможные визуальные отличия от оригинала. 30–50 обычно достаточно, чтобы фото прошло как новое, но глазом разницу почти не видно.">Сила уникализации:
       <input type="range" id="strength" min="1" max="100" value="40">
       <span class="slider-val" id="strengthVal">40</span>
     </label>
-    <label>Тип файла:
+    <label title="Формат готовых файлов. JPG — меньше вес, поддерживает подмену EXIF, лучше для соцсетей. PNG — без потерь качества, но файлы тяжелее и без EXIF-данных.">Тип файла:
       <select id="format">
         <option value="image/jpeg" selected>JPG</option>
         <option value="image/png">PNG</option>
       </select>
     </label>
-    <label>Скачать как:
+    <label title="Как отдать результат. «Архив ZIP» — все фото соберутся в один файл .zip (удобно для большого числа копий). «Отдельными файлами» — вы один раз выбираете папку, и скрипт сам сохраняет туда все фото (Chrome, Edge, Opera). В браузерах без поддержки выбора папки (Firefox, Safari, часть встроенных) каждый файл скачивается по отдельности.">Скачать как:
       <select id="downloadMode">
         <option value="zip" selected>Архив ZIP</option>
         <option value="files">Отдельными файлами</option>
       </select>
     </label>
-    <label>Площадка:
+    <label title="Выберите соцсеть или сервис — ниже появятся готовые размеры под её посты, сторис и аватары. «Другая» оставляет исходный размер фото без изменения.">Площадка:
       <select id="platform"></select>
     </label>
-    <label>Размер:
+    <label title="Готовый размер под выбранную площадку. Фото будет масштабировано и обрезано (cover) под эти пропорции. «Исходный размер» — оставить как есть, только с лёгким случайным джиттером размера.">Размер:
       <select id="presetSize"></select>
     </label>
-    <label class="switch">
+    <label class="switch" title="Отражает фото по горизонтали (лево↔право), как в зеркале. Сильно меняет цифровой «отпечаток» изображения, при этом сцена выглядит естественно.">
       <input type="checkbox" id="mirrorEnabled">
       Зеркальное отражение
     </label>
-    <label class="switch" title="Работает только для формата JPG">
+    <label class="switch" title="Вшивает в файл случайные фейковые метаданные: марку и модель камеры (iPhone, Samsung, Canon…), дату съёмки, версию ПО, GPS-координаты случайного города и ориентацию. Файл выглядит как снятый настоящим устройством. Работает только для формата JPG.">
       <input type="checkbox" id="exifEnabled">
       Подмена EXIF
     </label>
-    <label class="switch">
+    <label class="switch" title="Наносит на фото ваш водяной знак — текст (например, @канал) или логотип-картинку. Ниже откроется панель с настройками положения, размера и прозрачности и предпросмотром.">
       <input type="checkbox" id="wmEnabled">
       Водяной знак
     </label>
@@ -271,23 +294,23 @@
 
   <div class="wm-panel" id="wmPanel">
     <div class="row">
-      <label>Тип знака:
+      <label title="Что наносить: «Текст» — надпись (ник, название канала) или «Картинка (логотип)» — загруженное вами изображение-логотип (PNG с прозрачностью смотрится лучше всего).">Тип знака:
         <select id="wmType">
           <option value="text" selected>Текст</option>
           <option value="logo">Картинка (логотип)</option>
         </select>
       </label>
-      <label id="wmTextRow" style="flex:1">Текст:
+      <label id="wmTextRow" style="flex:1" title="Текст водяного знака — до 60 символов. Например, ваш ник или ссылка на канал.">Текст:
         <input type="text" id="wmText" placeholder="Например: @мой_канал" maxlength="60">
       </label>
-      <label id="wmLogoRow" class="wm-logo-row">
+      <label id="wmLogoRow" class="wm-logo-row" title="Загрузите картинку-логотип (PNG, JPG). PNG с прозрачным фоном выглядит аккуратнее. HEIC часто не открывается в браузере — сконвертируйте в PNG.">
         <button type="button" class="secondary" id="logoBtn">Загрузить логотип…</button>
         <span id="logoName"></span>
       </label>
     </div>
     <input type="file" id="logoInput" accept="image/png,image/jpeg,image/heic,image/heif,.heic,.heif">
     <div class="row">
-      <label>Положение:
+      <label title="Где разместить знак на фото: по углам, по центру или «По всему фото (сетка)» — повторяющийся наклонённый узор, который сложно вырезать.">Положение:
         <select id="wmPosition">
           <option value="br" selected>Правый нижний угол</option>
           <option value="bl">Левый нижний угол</option>
@@ -297,17 +320,17 @@
           <option value="tile">По всему фото (сетка)</option>
         </select>
       </label>
-      <label>Размер:
+      <label title="Размер знака относительно ширины фото. Больше значение — крупнее текст или логотип.">Размер:
         <input type="range" id="wmSize" min="2" max="15" value="5">
         <span class="slider-val" id="wmSizeVal">5</span>
       </label>
-      <label>Прозрачность:
+      <label title="Прозрачность знака. 100% — полностью непрозрачный, ниже — знак становится полупрозрачным и меньше перекрывает фото.">Прозрачность:
         <input type="range" id="wmOpacity" min="5" max="100" value="35">
         <span class="slider-val" id="wmOpacityVal">35%</span>
       </label>
     </div>
     <div class="row">
-      <div class="wm-preview">
+      <div class="wm-preview" title="Живой предпросмотр водяного знака на первом загруженном фото. Отражает текущие настройки положения, размера и прозрачности. Пиксельный шум и микроповорот здесь не показываются.">
         <span>Предпросмотр:</span>
         <canvas id="wmPreview" width="340" height="220"></canvas>
       </div>
@@ -317,14 +340,19 @@
   <div id="fileList"></div>
 
   <div class="actions">
-    <button class="primary" id="processBtn" disabled>Уникализировать и скачать ZIP</button>
-    <button class="secondary" id="cancelBtn" style="display:none">Отмена</button>
-    <button class="secondary" id="clearBtn">Очистить</button>
+    <button class="primary" id="processBtn" title="Запускает обработку всех загруженных фото с текущими настройками и сразу отдаёт результат на скачивание (в ZIP или отдельными файлами — по выбору выше)." disabled>Уникализировать и скачать (без зип)</button>
+    <button class="secondary" id="cancelBtn" title="Прервать текущую обработку. Уже готовые копии при отмене не сохраняются." style="display:none">Отмена</button>
+    <button class="secondary" id="clearBtn" title="Убрать все загруженные фото из списка и очистить прогресс. Настройки при этом сохраняются.">Очистить</button>
   </div>
   <div id="progressWrap">
     <div class="bar"><div class="bar-fill" id="barFill"></div></div>
   </div>
   <div id="progress"></div>
+
+  <div class="footer">
+    <a href="https://t.me/aasters" target="_blank" rel="noopener" title="Написать разработчику в Telegram">👨‍💻 Разработчик: @aasters</a>
+    <a href="https://t.me/adultconsult" target="_blank" rel="noopener" title="Перейти в Telegram-канал">📢 Канал: @adultconsult</a>
+  </div>
 </div>
 
 <script>
@@ -427,9 +455,17 @@
   wmTextInput.addEventListener('input', () => { updateWmPreview(); saveSettings(); });
   wmPositionSel.addEventListener('change', () => { updateWmPreview(); saveSettings(); });
 
+  // Подпись главной кнопки зависит от выбранного режима скачивания
+  function updateProcessBtnLabel() {
+    processBtn.textContent = downloadModeSel.value === 'zip'
+      ? 'Уникализировать и скачать ZIP'
+      : 'Уникализировать и скачать (без зип)';
+  }
+  updateProcessBtnLabel();
+
   copiesInput.addEventListener('input', saveSettings);
   formatSel.addEventListener('change', saveSettings);
-  downloadModeSel.addEventListener('change', saveSettings);
+  downloadModeSel.addEventListener('change', () => { updateProcessBtnLabel(); saveSettings(); });
   mirrorEnabled.addEventListener('change', saveSettings);
   exifEnabled.addEventListener('change', saveSettings);
 
@@ -594,7 +630,7 @@
     if (s.wmSize) { wmSize.value = s.wmSize; wmSizeVal.textContent = s.wmSize; }
     if (s.wmOpacity) { wmOpacity.value = s.wmOpacity; wmOpacityVal.textContent = s.wmOpacity + '%'; }
     if (s.platform && PRESETS[s.platform]) { platformSel.value = s.platform; fillPresetSizes(s.presetSize); }
-    if (s.downloadMode) downloadModeSel.value = s.downloadMode;
+    if (s.downloadMode) { downloadModeSel.value = s.downloadMode; updateProcessBtnLabel(); }
     if (s.wmEnabled) { wmEnabled.checked = true; wmPanel.classList.add('open'); }
     applyWmType();
     if (s.logo) {
@@ -1104,11 +1140,38 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }
 
-  // Скачивание пачки отдельными файлами (с паузой, чтобы браузер не блокировал)
+  // Скачивание пачки отдельными файлами (с паузой, чтобы браузер не блокировал).
+  // Запасной вариант для браузеров без File System Access API — по одному окну на файл.
   async function downloadFiles(entries, mime) {
     for (const e of entries) {
       downloadBlob(new Blob([e.data], { type: mime }), e.name);
       await new Promise(r => setTimeout(r, 350));
+    }
+  }
+
+  // Сохранение всех файлов в выбранную папку (один диалог на всю пачку).
+  // Требует File System Access API (Chrome, Edge, Opera). Папка выбирается заранее.
+  async function saveEntriesToDirectory(entries, mime, dirHandle, onProgress) {
+    const used = new Set();
+    let i = 0;
+    for (const e of entries) {
+      // Избегаем перезаписи при совпадении имён (например, одинаковые исходники)
+      let name = e.name;
+      if (used.has(name)) {
+        const dot = name.lastIndexOf('.');
+        const stem = dot >= 0 ? name.slice(0, dot) : name;
+        const ext = dot >= 0 ? name.slice(dot) : '';
+        let k = 2;
+        while (used.has(`${stem}(${k})${ext}`)) k++;
+        name = `${stem}(${k})${ext}`;
+      }
+      used.add(name);
+
+      const fh = await dirHandle.getFileHandle(name, { create: true });
+      const ws = await fh.createWritable();
+      await ws.write(new Blob([e.data], { type: mime }));
+      await ws.close();
+      if (onProgress) onProgress(++i, entries.length);
     }
   }
 
@@ -1131,6 +1194,17 @@
   }
 
   processBtn.addEventListener('click', async () => {
+    // Режим «отдельными файлами»: спрашиваем папку один раз, в рамках жеста пользователя.
+    // Если API недоступно (Firefox/Safari, часть встроенных браузеров) — сработает запасной путь.
+    let dirHandle = null;
+    if (downloadModeSel.value === 'files' && 'showDirectoryPicker' in window) {
+      try {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      } catch (e) {
+        return; // пользователь закрыл диалог выбора папки — ничего не делаем
+      }
+    }
+
     processBtn.disabled = true;
     cancelRequested = false;
     cancelBtn.style.display = '';
@@ -1201,9 +1275,17 @@
 
       const totalTime = (performance.now() - startTime) / 1000;
       if (downloadModeSel.value === 'files') {
-        progress.textContent = 'Скачиваю файлы…';
-        await downloadFiles(zipEntries, format);
-        progress.textContent = `Готово! Скачано ${zipEntries.length} файлов за ${fmtTime(totalTime)}.`;
+        if (dirHandle) {
+          progress.textContent = 'Сохраняю файлы в папку…';
+          await saveEntriesToDirectory(zipEntries, format, dirHandle, (i, n) => {
+            progress.textContent = `Сохраняю в папку ${i} из ${n}…`;
+          });
+          progress.textContent = `Готово! Сохранено ${zipEntries.length} файлов в выбранную папку за ${fmtTime(totalTime)}.`;
+        } else {
+          progress.textContent = 'Скачиваю файлы…';
+          await downloadFiles(zipEntries, format);
+          progress.textContent = `Готово! Скачано ${zipEntries.length} файлов за ${fmtTime(totalTime)}.`;
+        }
       } else {
         progress.textContent = 'Формирую ZIP…';
         const zip = buildZip(zipEntries);
