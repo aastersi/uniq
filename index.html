@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Уникализатор фотографий</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: #12141a;
+    color: #e8eaf0;
+    min-height: 100vh;
+    padding: 32px 16px;
+  }
+  .container { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 26px; margin-bottom: 6px; }
+  .subtitle { color: #8b90a0; margin-bottom: 24px; font-size: 14px; }
+
+  #dropzone {
+    border: 2px dashed #3a4054;
+    border-radius: 14px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    background: #191c25;
+  }
+  #dropzone:hover, #dropzone.drag {
+    border-color: #6c8cff;
+    background: #1d2130;
+  }
+  #dropzone .icon { font-size: 42px; margin-bottom: 12px; }
+  #dropzone p { color: #a8adc0; }
+  #dropzone .hint { font-size: 12px; color: #676d80; margin-top: 8px; }
+
+  .settings {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+    padding: 16px 20px;
+    background: #191c25;
+    border-radius: 12px;
+    align-items: center;
+  }
+  .settings label { font-size: 14px; color: #a8adc0; display: flex; align-items: center; gap: 8px; }
+  .settings input[type=number] {
+    width: 64px;
+    padding: 6px 8px;
+    background: #12141a;
+    border: 1px solid #3a4054;
+    border-radius: 6px;
+    color: #e8eaf0;
+    font-size: 14px;
+  }
+  .settings select, .wm-panel select, .wm-panel input[type=text] {
+    padding: 6px 8px;
+    background: #12141a;
+    border: 1px solid #3a4054;
+    border-radius: 6px;
+    color: #e8eaf0;
+    font-size: 14px;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 160px;
+    height: 5px;
+    border-radius: 3px;
+    background: #3a4054;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #6c8cff;
+  }
+  .slider-val {
+    min-width: 34px;
+    text-align: center;
+    font-size: 13px;
+    color: #e8eaf0;
+    background: #12141a;
+    border: 1px solid #3a4054;
+    border-radius: 6px;
+    padding: 3px 4px;
+  }
+
+  .wm-panel {
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    margin: -8px 0 20px;
+    padding: 16px 20px;
+    background: #191c25;
+    border-radius: 12px;
+    border-left: 3px solid #6c8cff;
+  }
+  .wm-panel.open { display: flex; }
+  .wm-panel .row { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; }
+  .wm-panel label { font-size: 14px; color: #a8adc0; display: flex; align-items: center; gap: 8px; }
+  .wm-panel input[type=text] { flex: 1; min-width: 220px; }
+  .switch { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+  .switch input { width: 18px; height: 18px; accent-color: #4c6fff; cursor: pointer; }
+
+  .wm-preview { display: flex; flex-direction: column; gap: 8px; }
+  .wm-preview span { font-size: 13px; color: #8b90a0; }
+  #wmPreview {
+    max-width: 340px;
+    width: 100%;
+    border: 1px solid #3a4054;
+    border-radius: 8px;
+    background: #12141a;
+  }
+  .wm-logo-row { display: none; align-items: center; gap: 10px; }
+  #logoBtn { padding: 8px 14px; font-size: 14px; }
+  #logoName { font-size: 13px; color: #8b90a0; }
+
+  #fileList { margin-top: 16px; }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #191c25;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  .file-item img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; }
+  .file-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-item .status { color: #8b90a0; font-size: 13px; }
+  .file-item .status.done { color: #5dd97c; }
+  .file-item .remove {
+    background: none; border: none; color: #676d80;
+    cursor: pointer; font-size: 18px; padding: 2px 6px;
+  }
+  .file-item .remove:hover { color: #ff6b6b; }
+
+  .actions { display: flex; gap: 12px; margin-top: 20px; }
+  button.primary {
+    flex: 1;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    background: #4c6fff;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  button.primary:hover:not(:disabled) { background: #5d7dff; }
+  button.primary:disabled { background: #2a2f42; color: #676d80; cursor: default; }
+  button.secondary {
+    padding: 14px 20px;
+    font-size: 15px;
+    background: #252a3a;
+    color: #a8adc0;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  button.secondary:hover { background: #2e3448; }
+
+  #progress { margin-top: 14px; font-size: 14px; color: #8b90a0; text-align: center; min-height: 20px; }
+  input[type=file] { display: none; }
+
+  /* Прогресс-бар */
+  #progressWrap { display: none; margin-top: 16px; }
+  .bar {
+    height: 10px;
+    border-radius: 6px;
+    background: #252a3a;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4c6fff, #6c8cff);
+    transition: width .15s ease;
+  }
+
+  /* Баннер для Telegram */
+  #tgBanner {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+    padding: 12px 16px;
+    background: #1d2130;
+    border: 1px solid #2e3448;
+    border-radius: 12px;
+    font-size: 13px;
+    color: #a8adc0;
+  }
+  #tgBanner b { color: #e8eaf0; }
+  #tgOpenExternal {
+    padding: 8px 14px;
+    font-size: 13px;
+    background: #4c6fff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="tgBanner">
+    <span>📲 Если скачивание не срабатывает внутри Telegram — <b>откройте во внешнем браузере</b>.</span>
+    <button id="tgOpenExternal">Открыть в браузере</button>
+  </div>
+
+  <h1>📸 Уникализатор фотографий</h1>
+  <p class="subtitle">Создаёт уникальные копии фото: удаляет метаданные, добавляет невидимый шум, микроповорот, сдвиг цвета и обрезку — визуально фото не отличить от оригинала.</p>
+
+  <div id="dropzone">
+    <div class="icon">🖼️</div>
+    <p><b>Перетащи фото сюда</b> или нажми, чтобы выбрать</p>
+    <p class="hint">JPG, PNG, WebP — можно сразу много файлов</p>
+  </div>
+  <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple>
+
+  <div class="settings">
+    <label>Копий на каждое фото:
+      <input type="number" id="copies" min="1" max="50" value="1">
+    </label>
+    <label>Сила уникализации:
+      <input type="range" id="strength" min="1" max="100" value="40">
+      <span class="slider-val" id="strengthVal">40</span>
+    </label>
+    <label>Тип файла:
+      <select id="format">
+        <option value="image/jpeg" selected>JPG</option>
+        <option value="image/png">PNG</option>
+      </select>
+    </label>
+    <label>Скачать как:
+      <select id="downloadMode">
+        <option value="zip" selected>Архив ZIP</option>
+        <option value="files">Отдельными файлами</option>
+      </select>
+    </label>
+    <label>Площадка:
+      <select id="platform"></select>
+    </label>
+    <label>Размер:
+      <select id="presetSize"></select>
+    </label>
+    <label class="switch">
+      <input type="checkbox" id="mirrorEnabled">
+      Зеркальное отражение
+    </label>
+    <label class="switch" title="Работает только для формата JPG">
+      <input type="checkbox" id="exifEnabled">
+      Подмена EXIF
+    </label>
+    <label class="switch">
+      <input type="checkbox" id="wmEnabled">
+      Водяной знак
+    </label>
+  </div>
+
+  <div class="wm-panel" id="wmPanel">
+    <div class="row">
+      <label>Тип знака:
+        <select id="wmType">
+          <option value="text" selected>Текст</option>
+          <option value="logo">Картинка (логотип)</option>
+        </select>
+      </label>
+      <label id="wmTextRow" style="flex:1">Текст:
+        <input type="text" id="wmText" placeholder="Например: @мой_канал" maxlength="60">
+      </label>
+      <label id="wmLogoRow" class="wm-logo-row">
+        <button type="button" class="secondary" id="logoBtn">Загрузить логотип…</button>
+        <span id="logoName"></span>
+      </label>
+    </div>
+    <input type="file" id="logoInput" accept="image/png,image/jpeg,image/heic,image/heif,.heic,.heif">
+    <div class="row">
+      <label>Положение:
+        <select id="wmPosition">
+          <option value="br" selected>Правый нижний угол</option>
+          <option value="bl">Левый нижний угол</option>
+          <option value="tr">Правый верхний угол</option>
+          <option value="tl">Левый верхний угол</option>
+          <option value="center">По центру</option>
+          <option value="tile">По всему фото (сетка)</option>
+        </select>
+      </label>
+      <label>Размер:
+        <input type="range" id="wmSize" min="2" max="15" value="5">
+        <span class="slider-val" id="wmSizeVal">5</span>
+      </label>
+      <label>Прозрачность:
+        <input type="range" id="wmOpacity" min="5" max="100" value="35">
+        <span class="slider-val" id="wmOpacityVal">35%</span>
+      </label>
+    </div>
+    <div class="row">
+      <div class="wm-preview">
+        <span>Предпросмотр:</span>
+        <canvas id="wmPreview" width="340" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div id="fileList"></div>
+
+  <div class="actions">
+    <button class="primary" id="processBtn" disabled>Уникализировать и скачать ZIP</button>
+    <button class="secondary" id="cancelBtn" style="display:none">Отмена</button>
+    <button class="secondary" id="clearBtn">Очистить</button>
+  </div>
+  <div id="progressWrap">
+    <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+  </div>
+  <div id="progress"></div>
+</div>
+
+<script>
+(() => {
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileList = document.getElementById('fileList');
+  const processBtn = document.getElementById('processBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const progress = document.getElementById('progress');
+
+  let files = []; // { file, el, statusEl }
+
+  // ---------- Загрузка файлов ----------
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+    addFiles(e.dataTransfer.files);
+  });
+
+  function addFiles(list) {
+    for (const f of list) {
+      if (!/^image\/(jpeg|png|webp)$/.test(f.type)) continue;
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = f.name;
+      const status = document.createElement('span');
+      status.className = 'status';
+      status.textContent = 'готово к обработке';
+      const rm = document.createElement('button');
+      rm.className = 'remove';
+      rm.textContent = '✕';
+      const entry = { file: f, el: item, statusEl: status };
+      rm.addEventListener('click', () => {
+        files = files.filter(x => x !== entry);
+        item.remove();
+        updateBtn();
+        refreshPreviewBitmap();
+      });
+      item.append(img, name, status, rm);
+      fileList.appendChild(item);
+      files.push(entry);
+    }
+    updateBtn();
+    refreshPreviewBitmap();
+  }
+
+  function updateBtn() {
+    processBtn.disabled = files.length === 0;
+  }
+
+  clearBtn.addEventListener('click', () => {
+    files = [];
+    fileList.innerHTML = '';
+    progress.textContent = '';
+    updateBtn();
+    refreshPreviewBitmap();
+  });
+
+  // ---------- Настройки: ползунки и панель водяного знака ----------
+  const LS_KEY = 'uniqualizer_settings_v1';
+  const copiesInput = document.getElementById('copies');
+  const formatSel = document.getElementById('format');
+  const downloadModeSel = document.getElementById('downloadMode');
+  const mirrorEnabled = document.getElementById('mirrorEnabled');
+  const exifEnabled = document.getElementById('exifEnabled');
+
+  const strengthInput = document.getElementById('strength');
+  const strengthVal = document.getElementById('strengthVal');
+  strengthInput.addEventListener('input', () => { strengthVal.textContent = strengthInput.value; saveSettings(); });
+
+  const wmEnabled = document.getElementById('wmEnabled');
+  const wmPanel = document.getElementById('wmPanel');
+  wmEnabled.addEventListener('change', () => {
+    wmPanel.classList.toggle('open', wmEnabled.checked);
+    if (wmEnabled.checked) refreshPreviewBitmap();
+    saveSettings();
+  });
+
+  const wmSize = document.getElementById('wmSize');
+  const wmSizeVal = document.getElementById('wmSizeVal');
+  wmSize.addEventListener('input', () => { wmSizeVal.textContent = wmSize.value; updateWmPreview(); saveSettings(); });
+
+  const wmOpacity = document.getElementById('wmOpacity');
+  const wmOpacityVal = document.getElementById('wmOpacityVal');
+  wmOpacity.addEventListener('input', () => { wmOpacityVal.textContent = wmOpacity.value + '%'; updateWmPreview(); saveSettings(); });
+
+  // ---------- Предпросмотр водяного знака ----------
+  const wmPreviewCanvas = document.getElementById('wmPreview');
+  const wmTextInput = document.getElementById('wmText');
+  const wmPositionSel = document.getElementById('wmPosition');
+  wmTextInput.addEventListener('input', () => { updateWmPreview(); saveSettings(); });
+  wmPositionSel.addEventListener('change', () => { updateWmPreview(); saveSettings(); });
+
+  copiesInput.addEventListener('input', saveSettings);
+  formatSel.addEventListener('change', saveSettings);
+  downloadModeSel.addEventListener('change', saveSettings);
+  mirrorEnabled.addEventListener('change', saveSettings);
+  exifEnabled.addEventListener('change', saveSettings);
+
+  // ---------- Пресеты площадок ----------
+  // [подпись, ширина, высота]; 0×0 — без изменения размера
+  const PRESETS = {
+    'Другая':    [['Исходный размер (без изменения)', 0, 0]],
+    'Instagram': [
+      ['Пост квадрат 1080×1080', 1080, 1080],
+      ['Пост портрет 1080×1350', 1080, 1350],
+      ['Сторис / Reels 1080×1920', 1080, 1920],
+      ['Аватар 320×320', 320, 320],
+    ],
+    'TikTok': [
+      ['Видео / Сторис 1080×1920', 1080, 1920],
+      ['Аватар 200×200', 200, 200],
+    ],
+    'Telegram': [
+      ['Пост 1280×1280', 1280, 1280],
+      ['Сторис 1080×1920', 1080, 1920],
+      ['Аватар 512×512', 512, 512],
+    ],
+    'Snapchat': [
+      ['Сторис / Spotlight 1080×1920', 1080, 1920],
+      ['Аватар 320×320', 320, 320],
+    ],
+    'OnlyFans': [
+      ['Пост квадрат 1080×1080', 1080, 1080],
+      ['Пост портрет 1080×1350', 1080, 1350],
+      ['Обложка 1920×1080', 1920, 1080],
+      ['Аватар 384×384', 384, 384],
+    ],
+    'Tinder': [
+      ['Фото профиля 640×640', 640, 640],
+      ['Фото портрет 1080×1350', 1080, 1350],
+    ],
+    'Bumble': [
+      ['Фото профиля 1080×1350', 1080, 1350],
+      ['Квадрат 1080×1080', 1080, 1080],
+    ],
+  };
+
+  const platformSel = document.getElementById('platform');
+  const presetSizeSel = document.getElementById('presetSize');
+
+  for (const name of Object.keys(PRESETS)) {
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name;
+    platformSel.appendChild(o);
+  }
+
+  function fillPresetSizes(keepValue) {
+    const list = PRESETS[platformSel.value] || PRESETS['Другая'];
+    presetSizeSel.innerHTML = '';
+    list.forEach((p, i) => {
+      const o = document.createElement('option');
+      o.value = i; o.textContent = p[0];
+      presetSizeSel.appendChild(o);
+    });
+    if (keepValue != null && list[keepValue]) presetSizeSel.value = keepValue;
+  }
+  fillPresetSizes();
+
+  function currentTarget() {
+    const list = PRESETS[platformSel.value] || PRESETS['Другая'];
+    const p = list[parseInt(presetSizeSel.value) || 0];
+    if (!p || !p[1] || !p[2]) return null;
+    return { w: p[1], h: p[2] };
+  }
+
+  platformSel.addEventListener('change', () => { fillPresetSizes(); saveSettings(); });
+  presetSizeSel.addEventListener('change', saveSettings);
+
+  // ---------- Логотип для водяного знака ----------
+  const wmTypeSel = document.getElementById('wmType');
+  const textRow = document.getElementById('wmTextRow');
+  const logoRow = document.getElementById('wmLogoRow');
+  const logoInput = document.getElementById('logoInput');
+  const logoBtn = document.getElementById('logoBtn');
+  const logoName = document.getElementById('logoName');
+
+  let logoBitmap = null;
+  let logoDataUrl = null;
+
+  function applyWmType() {
+    const isLogo = wmTypeSel.value === 'logo';
+    textRow.style.display = isLogo ? 'none' : 'flex';
+    logoRow.style.display = isLogo ? 'flex' : 'none';
+    updateWmPreview();
+  }
+  wmTypeSel.addEventListener('change', () => { applyWmType(); saveSettings(); });
+
+  logoBtn.addEventListener('click', () => logoInput.click());
+  logoInput.addEventListener('change', async () => {
+    const f = logoInput.files[0];
+    logoInput.value = '';
+    if (!f) return;
+    try {
+      const url = await fileToDataUrl(f);
+      await setLogoFromDataUrl(url);
+      logoDataUrl = url;
+      logoName.textContent = f.name;
+      logoName.style.color = '#8b90a0';
+      updateWmPreview();
+      saveSettings();
+    } catch (e) {
+      logoName.textContent = 'Не удалось открыть (HEIC часто не поддерживается браузером — сконвертируйте в PNG)';
+      logoName.style.color = '#ff8f8f';
+    }
+  });
+
+  async function setLogoFromDataUrl(url) {
+    const blob = await (await fetch(url)).blob();
+    const bmp = await createImageBitmap(blob);
+    if (logoBitmap) logoBitmap.close();
+    logoBitmap = bmp;
+  }
+
+  function fileToDataUrl(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  // ---------- Сохранение настроек ----------
+  function saveSettings() {
+    const s = {
+      copies: copiesInput.value,
+      strength: strengthInput.value,
+      format: formatSel.value,
+      mirror: mirrorEnabled.checked,
+      exif: exifEnabled.checked,
+      wmEnabled: wmEnabled.checked,
+      wmType: wmTypeSel.value,
+      wmText: wmTextInput.value,
+      wmPosition: wmPositionSel.value,
+      wmSize: wmSize.value,
+      wmOpacity: wmOpacity.value,
+      platform: platformSel.value,
+      presetSize: presetSizeSel.value,
+      downloadMode: downloadModeSel.value,
+      logo: logoDataUrl || null,
+    };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(s)); } catch (e) { /* приватный режим — молча пропускаем */ }
+  }
+
+  function loadSettings() {
+    let s;
+    try { s = JSON.parse(localStorage.getItem(LS_KEY)); } catch (e) { return; }
+    if (!s) return;
+    if (s.copies) copiesInput.value = s.copies;
+    if (s.strength) { strengthInput.value = s.strength; strengthVal.textContent = s.strength; }
+    if (s.format) formatSel.value = s.format;
+    mirrorEnabled.checked = !!s.mirror;
+    exifEnabled.checked = !!s.exif;
+    if (s.wmType) wmTypeSel.value = s.wmType;
+    if (typeof s.wmText === 'string') wmTextInput.value = s.wmText;
+    if (s.wmPosition) wmPositionSel.value = s.wmPosition;
+    if (s.wmSize) { wmSize.value = s.wmSize; wmSizeVal.textContent = s.wmSize; }
+    if (s.wmOpacity) { wmOpacity.value = s.wmOpacity; wmOpacityVal.textContent = s.wmOpacity + '%'; }
+    if (s.platform && PRESETS[s.platform]) { platformSel.value = s.platform; fillPresetSizes(s.presetSize); }
+    if (s.downloadMode) downloadModeSel.value = s.downloadMode;
+    if (s.wmEnabled) { wmEnabled.checked = true; wmPanel.classList.add('open'); }
+    applyWmType();
+    if (s.logo) {
+      logoDataUrl = s.logo;
+      setLogoFromDataUrl(s.logo)
+        .then(() => { logoName.textContent = 'сохранённый логотип'; updateWmPreview(); })
+        .catch(() => { logoDataUrl = null; });
+    }
+  }
+
+  let previewBitmap = null;
+
+  async function refreshPreviewBitmap() {
+    if (previewBitmap) { previewBitmap.close(); previewBitmap = null; }
+    if (files.length) {
+      try { previewBitmap = await createImageBitmap(files[0].file); } catch (e) { /* битый файл — покажем заглушку */ }
+    }
+    updateWmPreview();
+  }
+
+  function updateWmPreview() {
+    if (!wmEnabled.checked) return;
+    const ctx = wmPreviewCanvas.getContext('2d');
+    const W = 340;
+    const H = previewBitmap
+      ? Math.max(60, Math.min(420, Math.round(W * previewBitmap.height / previewBitmap.width)))
+      : 220;
+    wmPreviewCanvas.width = W;
+    wmPreviewCanvas.height = H;
+    if (previewBitmap) {
+      ctx.drawImage(previewBitmap, 0, 0, W, H);
+    } else {
+      ctx.fillStyle = '#2a2f42';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#8b90a0';
+      ctx.font = '13px "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Загрузите фото — здесь появится предпросмотр', W / 2, H / 2);
+    }
+    drawWatermark(ctx, W, H, {
+      type: wmTypeSel.value,
+      logo: logoBitmap,
+      text: wmTextInput.value.trim() || 'Ваш текст',
+      position: wmPositionSel.value,
+      size: +wmSize.value,
+      opacity: +wmOpacity.value / 100,
+    });
+  }
+
+  // ---------- Уникализация ----------
+  // Плавная интерполяция параметров от значения ползунка 1..100
+  function paramsFromStrength(v) {
+    const t = (v - 1) / 99; // 0..1
+    return {
+      rot:         0.05 + t * 0.95,   // градусы
+      crop:        1 + t * 9,          // пиксели с каждого края
+      noise:       1 + t * 14,         // амплитуда шума
+      color:       0.005 + t * 0.055,  // сдвиг яркости/контраста/оттенка
+      scaleJitter: 0.001 + t * 0.011,  // случайное масштабирование
+    };
+  }
+
+  const rand = (min, max) => min + Math.random() * (max - min);
+
+  function drawWatermark(ctx, w, h, wm) {
+    if (wm.type === 'logo') {
+      if (wm.logo) drawLogoWatermark(ctx, w, h, wm);
+      return;
+    }
+    const fontSize = Math.max(10, Math.round(w * wm.size / 100));
+    ctx.save();
+    ctx.globalAlpha = wm.opacity;
+    ctx.font = `600 ${fontSize}px "Segoe UI", sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = fontSize * 0.12;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    const pad = Math.round(fontSize * 0.8);
+
+    if (wm.position === 'tile') {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(-30 * Math.PI / 180);
+      const stepX = ctx.measureText(wm.text).width + fontSize * 3;
+      const stepY = fontSize * 5;
+      const span = Math.max(w, h);
+      for (let y = -span; y <= span; y += stepY)
+        for (let x = -span; x <= span; x += stepX)
+          ctx.fillText(wm.text, x, y);
+    } else {
+      const pos = {
+        br:     { x: w - pad, y: h - pad, align: 'right',  base: 'bottom' },
+        bl:     { x: pad,     y: h - pad, align: 'left',   base: 'bottom' },
+        tr:     { x: w - pad, y: pad,     align: 'right',  base: 'top' },
+        tl:     { x: pad,     y: pad,     align: 'left',   base: 'top' },
+        center: { x: w / 2,   y: h / 2,   align: 'center', base: 'middle' },
+      }[wm.position];
+      ctx.textAlign = pos.align;
+      ctx.textBaseline = pos.base;
+      ctx.fillText(wm.text, pos.x, pos.y);
+    }
+    ctx.restore();
+  }
+
+  function drawLogoWatermark(ctx, w, h, wm) {
+    const logo = wm.logo;
+    const targetW = Math.max(16, Math.round(w * wm.size / 100 * 3));
+    const targetH = Math.round(targetW * logo.height / logo.width);
+    const pad = Math.round(w * 0.02) + 6;
+    ctx.save();
+    ctx.globalAlpha = wm.opacity;
+    if (wm.position === 'tile') {
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(-30 * Math.PI / 180);
+      const stepX = targetW + w * 0.08;
+      const stepY = targetH + h * 0.10;
+      const span = Math.max(w, h);
+      for (let y = -span; y <= span; y += stepY)
+        for (let x = -span; x <= span; x += stepX)
+          ctx.drawImage(logo, x - targetW / 2, y - targetH / 2, targetW, targetH);
+    } else {
+      const pos = {
+        br:     { x: w - pad - targetW, y: h - pad - targetH },
+        bl:     { x: pad,               y: h - pad - targetH },
+        tr:     { x: w - pad - targetW, y: pad },
+        tl:     { x: pad,               y: pad },
+        center: { x: (w - targetW) / 2, y: (h - targetH) / 2 },
+      }[wm.position];
+      ctx.drawImage(logo, pos.x, pos.y, targetW, targetH);
+    }
+    ctx.restore();
+  }
+
+  // ---------- Подмена EXIF (только JPEG) ----------
+  const CAMERAS = [
+    { make: 'Apple', models: ['iPhone 12', 'iPhone 13', 'iPhone 14 Pro', 'iPhone 15'], sw: ['16.5', '16.6.1', '17.1', '17.4.1'] },
+    { make: 'samsung', models: ['SM-G991B', 'SM-S911B', 'SM-A536B', 'SM-G998B'], sw: ['G991BXXU', 'S911BXXU', 'A536BXXU'] },
+    { make: 'Xiaomi', models: ['Redmi Note 11', 'Mi 11 Lite 5G', '2201123G', '23021RAA2Y'], sw: ['MIUI 14', 'HyperOS 1.0'] },
+    { make: 'Canon', models: ['Canon EOS 250D', 'Canon EOS R6', 'Canon EOS 90D'], sw: ['1.0.0', '1.6.0'] },
+    { make: 'NIKON CORPORATION', models: ['NIKON D3500', 'NIKON Z 6', 'NIKON Z fc'], sw: ['Ver.1.00', 'Ver.2.10'] },
+    { make: 'HUAWEI', models: ['ELS-NX9', 'VOG-L29', 'ANA-NX9'], sw: ['12.0.0'] },
+  ];
+
+  // Крупные города для случайной GPS-метки [широта, долгота]
+  const GPS_CITIES = [
+    [40.7128, -74.0060], [51.5074, -0.1278], [48.8566, 2.3522], [52.5200, 13.4050],
+    [55.7558, 37.6173], [41.9028, 12.4964], [34.0522, -118.2437], [25.7617, -80.1918],
+    [-33.8688, 151.2093], [35.6895, 139.6917], [1.3521, 103.8198], [25.2048, 55.2708],
+    [43.6532, -79.3832], [19.4326, -99.1332], [-23.5505, -46.6333], [59.3293, 18.0686],
+  ];
+
+  // Ориентация EXIF: 1 (обычная), 3 (180°), 6 (90° CW), 8 (90° CCW).
+  // Пиксели поворачиваются в обратную сторону, чтобы в просмотрщике фото было ровным.
+  const ORIENTATIONS = [1, 1, 1, 3, 6, 8];
+
+  function toDms(v) {
+    const deg = Math.floor(v);
+    const minFull = (v - deg) * 60;
+    const min = Math.floor(minFull);
+    const sec = Math.round((minFull - min) * 60 * 100); // сотые секунды
+    return [[deg, 1], [min, 1], [sec, 100]];
+  }
+
+  function randExifMeta() {
+    const cam = CAMERAS[Math.floor(Math.random() * CAMERAS.length)];
+    const model = cam.models[Math.floor(Math.random() * cam.models.length)];
+    const sw = cam.sw[Math.floor(Math.random() * cam.sw.length)];
+    const past = Date.now() - Math.floor(Math.random() * 730) * 86400000 - Math.floor(Math.random() * 86400000);
+    const d = new Date(past);
+    const p2 = n => String(n).padStart(2, '0');
+    const dt = `${d.getFullYear()}:${p2(d.getMonth() + 1)}:${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+
+    const orientation = ORIENTATIONS[Math.floor(Math.random() * ORIENTATIONS.length)];
+
+    const city = GPS_CITIES[Math.floor(Math.random() * GPS_CITIES.length)];
+    const lat = city[0] + (Math.random() - 0.5) * 0.06;
+    const lon = city[1] + (Math.random() - 0.5) * 0.06;
+    const gps = {
+      latRef: lat >= 0 ? 'N' : 'S',
+      lonRef: lon >= 0 ? 'E' : 'W',
+      lat: toDms(Math.abs(lat)),
+      lon: toDms(Math.abs(lon)),
+    };
+
+    return { make: cam.make, model, software: sw, dateTime: dt, orientation, gps };
+  }
+
+  // Поворачивает пиксели канваса так, чтобы EXIF-ориентация вернула фото ровным
+  function applyOrientation(src, orient) {
+    if (orient === 1) return src;
+    const w = src.width, h = src.height;
+    const swap = (orient === 6 || orient === 8);
+    const c = document.createElement('canvas');
+    c.width = swap ? h : w;
+    c.height = swap ? w : h;
+    const ctx = c.getContext('2d');
+    if (orient === 3) { ctx.translate(w, h); ctx.rotate(Math.PI); }
+    else if (orient === 6) { ctx.translate(0, w); ctx.rotate(-Math.PI / 2); }
+    else if (orient === 8) { ctx.translate(h, 0); ctx.rotate(Math.PI / 2); }
+    ctx.drawImage(src, 0, 0);
+    return c;
+  }
+
+  // Собирает APP1-сегмент EXIF (little-endian TIFF): камера, дата, ориентация, GPS.
+  // Типы TIFF: 1=BYTE, 2=ASCII, 3=SHORT, 4=LONG, 5=RATIONAL.
+  function buildExifSegment(meta) {
+    const enc = new TextEncoder();
+    const LE = true;
+
+    function serialize(type, values) {
+      if (type === 2) return enc.encode(values + '\0');                 // ASCII (строка)
+      if (type === 1) return Uint8Array.from(values);                   // BYTE
+      if (type === 3) {                                                 // SHORT
+        const b = new Uint8Array(values.length * 2), d = new DataView(b.buffer);
+        values.forEach((v, i) => d.setUint16(i * 2, v, LE));
+        return b;
+      }
+      if (type === 4) {                                                 // LONG
+        const b = new Uint8Array(values.length * 4), d = new DataView(b.buffer);
+        values.forEach((v, i) => d.setUint32(i * 4, v >>> 0, LE));
+        return b;
+      }
+      if (type === 5) {                                                 // RATIONAL [[num,den],...]
+        const b = new Uint8Array(values.length * 8), d = new DataView(b.buffer);
+        values.forEach((r, i) => { d.setUint32(i * 8, r[0] >>> 0, LE); d.setUint32(i * 8 + 4, r[1] >>> 0, LE); });
+        return b;
+      }
+    }
+    const countOf = (type, values) => type === 2 ? enc.encode(values + '\0').length : values.length;
+
+    const dt = meta.dateTime;
+    const ifd0 = [
+      { tag: 0x010F, type: 2, values: meta.make },
+      { tag: 0x0110, type: 2, values: meta.model },
+      { tag: 0x0112, type: 3, values: [meta.orientation] },   // Orientation
+      { tag: 0x0131, type: 2, values: meta.software },
+      { tag: 0x0132, type: 2, values: dt },
+    ];
+    const exif = [
+      { tag: 0x9003, type: 2, values: dt },                   // DateTimeOriginal
+      { tag: 0x9004, type: 2, values: dt },                   // DateTimeDigitized
+    ];
+    const gps = meta.gps ? [
+      { tag: 0x0000, type: 1, values: [2, 3, 0, 0] },         // GPSVersionID
+      { tag: 0x0001, type: 2, values: meta.gps.latRef },
+      { tag: 0x0002, type: 5, values: meta.gps.lat },
+      { tag: 0x0003, type: 2, values: meta.gps.lonRef },
+      { tag: 0x0004, type: 5, values: meta.gps.lon },
+    ] : null;
+
+    const ifd0Off = 8;
+    const ptrCount = 1 + (gps ? 1 : 0);                        // указатели Exif (+GPS)
+    const ifd0Size = 2 + (ifd0.length + ptrCount) * 12 + 4;
+    const exifOff = ifd0Off + ifd0Size;
+    const exifSize = 2 + exif.length * 12 + 4;
+    const gpsOff = exifOff + exifSize;
+    const gpsSize = gps ? (2 + gps.length * 12 + 4) : 0;
+    let extraOff = gpsOff + gpsSize;
+
+    const extra = [];
+    const assign = e => {
+      e.count = countOf(e.type, e.values);
+      e.bytes = serialize(e.type, e.values);
+      if (e.bytes.length <= 4) { e.inline = e.bytes; e.valOff = null; }
+      else {
+        e.valOff = extraOff;
+        let bytes = e.bytes;
+        if (bytes.length % 2) { const p = new Uint8Array(bytes.length + 1); p.set(bytes); bytes = p; }
+        extra.push({ off: extraOff, bytes });
+        extraOff += bytes.length;
+      }
+    };
+    ifd0.forEach(assign); exif.forEach(assign); if (gps) gps.forEach(assign);
+
+    const buf = new Uint8Array(extraOff);
+    const dv = new DataView(buf.buffer);
+    buf[0] = 0x49; buf[1] = 0x49;          // "II"
+    dv.setUint16(2, 0x002A, LE);
+    dv.setUint32(4, ifd0Off, LE);
+
+    function writeIfd(offset, entries, pointers, nextIfd) {
+      // Все записи IFD должны идти по возрастанию тега — сливаем и сортируем
+      const all = entries.map(e => ({ tag: e.tag, entry: e }))
+        .concat(pointers.map(pt => ({ tag: pt.tag, ptr: pt })))
+        .sort((a, b) => a.tag - b.tag);
+      let p = offset;
+      dv.setUint16(p, all.length, LE); p += 2;
+      for (const it of all) {
+        if (it.entry) {
+          const e = it.entry;
+          dv.setUint16(p, e.tag, LE); p += 2;
+          dv.setUint16(p, e.type, LE); p += 2;
+          dv.setUint32(p, e.count, LE); p += 4;
+          if (e.valOff === null) { for (let i = 0; i < 4; i++) buf[p + i] = i < e.inline.length ? e.inline[i] : 0; }
+          else dv.setUint32(p, e.valOff, LE);
+          p += 4;
+        } else {
+          dv.setUint16(p, it.ptr.tag, LE); p += 2;
+          dv.setUint16(p, 4, LE); p += 2;    // LONG
+          dv.setUint32(p, 1, LE); p += 4;
+          dv.setUint32(p, it.ptr.value, LE); p += 4;
+        }
+      }
+      dv.setUint32(p, nextIfd, LE);
+    }
+
+    const ptrs0 = [{ tag: 0x8769, value: exifOff }];
+    if (gps) ptrs0.push({ tag: 0x8825, value: gpsOff });
+    writeIfd(ifd0Off, ifd0, ptrs0, 0);
+    writeIfd(exifOff, exif, [], 0);
+    if (gps) writeIfd(gpsOff, gps, [], 0);
+    for (const c of extra) buf.set(c.bytes, c.off);
+
+    const head = new Uint8Array([0x45, 0x78, 0x69, 0x66, 0x00, 0x00]); // "Exif\0\0"
+    const app1Len = 2 + head.length + buf.length;
+    const seg = new Uint8Array(2 + app1Len);
+    seg[0] = 0xFF; seg[1] = 0xE1;
+    seg[2] = (app1Len >> 8) & 0xFF; seg[3] = app1Len & 0xFF;
+    seg.set(head, 4);
+    seg.set(buf, 4 + head.length);
+    return seg;
+  }
+
+  // Вставляет EXIF-сегмент в JPEG (после SOI и APP0/JFIF, если он есть)
+  function injectExif(jpeg, seg) {
+    if (jpeg[0] !== 0xFF || jpeg[1] !== 0xD8) return jpeg; // не JPEG
+    let insertAt = 2;
+    if (jpeg[2] === 0xFF && jpeg[3] === 0xE0) {
+      insertAt = 4 + ((jpeg[4] << 8) | jpeg[5]);
+    }
+    const out = new Uint8Array(jpeg.length + seg.length);
+    out.set(jpeg.subarray(0, insertAt), 0);
+    out.set(seg, insertAt);
+    out.set(jpeg.subarray(insertAt), insertAt + seg.length);
+    return out;
+  }
+
+  async function uniquify(file, params, format, wm, opts) {
+    const bitmap = await createImageBitmap(await blobFromFile(file));
+    const bw = bitmap.width, bh = bitmap.height;
+
+    // Обрезка краёв (в пикселях источника)
+    const cropX = Math.floor(rand(1, params.crop + 1));
+    const cropY = Math.floor(rand(1, params.crop + 1));
+    const sX = cropX, sY = cropY, sW = bw - cropX * 2, sH = bh - cropY * 2;
+
+    // Итоговый размер: пресет площадки или исходный (с лёгким джиттером)
+    const target = opts && opts.target;
+    let outW, outH;
+    if (target) {
+      outW = target.w; outH = target.h;
+    } else {
+      const jit = 1 + rand(-params.scaleJitter, params.scaleJitter);
+      outW = Math.max(16, Math.round(sW * jit));
+      outH = Math.max(16, Math.round(sH * jit));
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+
+    // Микроповорот + сдвиг цвета
+    const angle = rand(-params.rot, params.rot) * Math.PI / 180;
+    const b = 1 + rand(-params.color, params.color);
+    const c = 1 + rand(-params.color, params.color);
+    const s = 1 + rand(-params.color, params.color);
+    const hue = rand(-params.color * 40, params.color * 40);
+    ctx.filter = `brightness(${b}) contrast(${c}) saturate(${s}) hue-rotate(${hue}deg)`;
+
+    // cover-масштаб: источник заполняет вывод; поправка на поворот + случайный зум
+    const baseCover = Math.max(outW / sW, outH / sH);
+    const rotBoost = 1 / Math.cos(Math.abs(angle)) + Math.abs(Math.sin(angle));
+    const zoom = 1 + rand(0, params.scaleJitter);
+    const sc = baseCover * rotBoost * zoom;
+    const drawW = sW * sc, drawH = sH * sc;
+
+    ctx.translate(outW / 2, outH / 2);
+    ctx.rotate(angle);
+    ctx.scale((opts && opts.mirror ? -1 : 1), 1); // зеркальное отражение
+    ctx.drawImage(bitmap, sX, sY, sW, sH, -drawW / 2, -drawH / 2, drawW, drawH);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.filter = 'none';
+
+    // Невидимый пиксельный шум
+    const imgData = ctx.getImageData(0, 0, outW, outH);
+    const d = imgData.data;
+    const n = params.noise;
+    for (let i = 0; i < d.length; i += 4) {
+      if (Math.random() < 0.35) {
+        d[i]     += (Math.random() * 2 - 1) * n;
+        d[i + 1] += (Math.random() * 2 - 1) * n;
+        d[i + 2] += (Math.random() * 2 - 1) * n;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    if (wm) drawWatermark(ctx, outW, outH, wm);
+
+    // EXIF (только JPEG): ориентацию компенсируем поворотом пикселей
+    let exifMeta = null;
+    let outCanvas = canvas;
+    if (opts && opts.exif && format === 'image/jpeg') {
+      exifMeta = randExifMeta();
+      outCanvas = applyOrientation(canvas, exifMeta.orientation);
+    }
+
+    const quality = format === 'image/jpeg' ? rand(0.90, 0.96) : undefined;
+    let blob = await new Promise(res => outCanvas.toBlob(res, format, quality));
+    bitmap.close();
+
+    if (exifMeta) {
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const injected = injectExif(bytes, buildExifSegment(exifMeta));
+      blob = new Blob([injected], { type: 'image/jpeg' });
+    }
+    return blob;
+  }
+
+  function blobFromFile(file) {
+    return Promise.resolve(file); // File уже Blob
+  }
+
+  // ---------- Минимальный ZIP (без сжатия, store) ----------
+  const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+      t[i] = c;
+    }
+    return t;
+  })();
+
+  function crc32(buf) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function buildZip(entries) { // entries: [{name, data:Uint8Array}]
+    const enc = new TextEncoder();
+    const parts = [];
+    const central = [];
+    let offset = 0;
+    const now = new Date();
+    const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
+    const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+
+    for (const e of entries) {
+      const nameBytes = enc.encode(e.name);
+      const crc = crc32(e.data);
+      const local = new DataView(new ArrayBuffer(30));
+      local.setUint32(0, 0x04034b50, true);
+      local.setUint16(4, 20, true);       // version
+      local.setUint16(6, 0x0800, true);   // UTF-8 flag
+      local.setUint16(8, 0, true);        // store
+      local.setUint16(10, dosTime, true);
+      local.setUint16(12, dosDate, true);
+      local.setUint32(14, crc, true);
+      local.setUint32(18, e.data.length, true);
+      local.setUint32(22, e.data.length, true);
+      local.setUint16(26, nameBytes.length, true);
+      local.setUint16(28, 0, true);
+      parts.push(new Uint8Array(local.buffer), nameBytes, e.data);
+
+      const cd = new DataView(new ArrayBuffer(46));
+      cd.setUint32(0, 0x02014b50, true);
+      cd.setUint16(4, 20, true);
+      cd.setUint16(6, 20, true);
+      cd.setUint16(8, 0x0800, true);
+      cd.setUint16(10, 0, true);
+      cd.setUint16(12, dosTime, true);
+      cd.setUint16(14, dosDate, true);
+      cd.setUint32(16, crc, true);
+      cd.setUint32(20, e.data.length, true);
+      cd.setUint32(24, e.data.length, true);
+      cd.setUint16(28, nameBytes.length, true);
+      cd.setUint32(42, offset, true);
+      central.push(new Uint8Array(cd.buffer), nameBytes);
+
+      offset += 30 + nameBytes.length + e.data.length;
+    }
+
+    let cdSize = 0;
+    for (const p of central) cdSize += p.length;
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true);
+    end.setUint16(8, entries.length, true);
+    end.setUint16(10, entries.length, true);
+    end.setUint32(12, cdSize, true);
+    end.setUint32(16, offset, true);
+    return new Blob([...parts, ...central, new Uint8Array(end.buffer)], { type: 'application/zip' });
+  }
+
+  // Скачивание одного blob под нужным именем
+  function downloadBlob(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  // Скачивание пачки отдельными файлами (с паузой, чтобы браузер не блокировал)
+  async function downloadFiles(entries, mime) {
+    for (const e of entries) {
+      downloadBlob(new Blob([e.data], { type: mime }), e.name);
+      await new Promise(r => setTimeout(r, 350));
+    }
+  }
+
+  // ---------- Обработка ----------
+  const cancelBtn = document.getElementById('cancelBtn');
+  const progressWrap = document.getElementById('progressWrap');
+  const barFill = document.getElementById('barFill');
+  let cancelRequested = false;
+
+  cancelBtn.addEventListener('click', () => {
+    cancelRequested = true;
+    cancelBtn.disabled = true;
+    progress.textContent = 'Отмена…';
+  });
+
+  function fmtTime(sec) {
+    sec = Math.round(sec);
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return m > 0 ? `${m} мин ${s} сек` : `${s} сек`;
+  }
+
+  processBtn.addEventListener('click', async () => {
+    processBtn.disabled = true;
+    cancelRequested = false;
+    cancelBtn.style.display = '';
+    cancelBtn.disabled = false;
+    progressWrap.style.display = 'block';
+    barFill.style.width = '0%';
+
+    const copies = Math.max(1, Math.min(50, parseInt(copiesInput.value) || 1));
+    const params = paramsFromStrength(parseInt(strengthInput.value) || 40);
+    const format = formatSel.value;
+    let wm = null;
+    if (wmEnabled.checked) {
+      const common = {
+        position: wmPositionSel.value,
+        size: parseInt(wmSize.value),
+        opacity: parseInt(wmOpacity.value) / 100,
+      };
+      if (wmTypeSel.value === 'logo' && logoBitmap) {
+        wm = { type: 'logo', logo: logoBitmap, ...common };
+      } else if (wmTypeSel.value === 'text') {
+        const text = wmTextInput.value.trim();
+        if (text) wm = { type: 'text', text, ...common };
+      }
+    }
+    const opts = { mirror: mirrorEnabled.checked, exif: exifEnabled.checked, target: currentTarget() };
+    const ext = format === 'image/png' ? 'png' : 'jpg';
+    const zipEntries = [];
+    const total = files.length * copies;
+    let done = 0;
+    const startTime = performance.now();
+    let cancelled = false;
+
+    try {
+      for (const entry of files) {
+        if (cancelRequested) { cancelled = true; break; }
+        entry.statusEl.textContent = 'обработка…';
+        const base = entry.file.name.replace(/\.[^.]+$/, '');
+        for (let i = 1; i <= copies; i++) {
+          if (cancelRequested) { cancelled = true; break; }
+          const blob = await uniquify(entry.file, params, format, wm, opts);
+          const suffix = copies > 1 ? `_${i}` : '';
+          zipEntries.push({
+            name: `${base}_uniq${suffix}.${ext}`,
+            data: new Uint8Array(await blob.arrayBuffer()),
+          });
+          done++;
+
+          const pct = Math.round(done / total * 100);
+          barFill.style.width = pct + '%';
+          const elapsed = (performance.now() - startTime) / 1000;
+          const eta = done < total ? (elapsed / done) * (total - done) : 0;
+          progress.textContent = `Обработано ${done} из ${total} (${pct}%)`
+            + (done < total ? ` · осталось ~${fmtTime(eta)}` : '');
+          await new Promise(r => setTimeout(r)); // не блокируем интерфейс
+        }
+        if (!cancelled) {
+          entry.statusEl.textContent = '✓ готово';
+          entry.statusEl.classList.add('done');
+        }
+      }
+
+      if (cancelled) {
+        progress.textContent = zipEntries.length
+          ? `Отменено. Готовые ${zipEntries.length} фото не сохранены.`
+          : 'Отменено.';
+        return;
+      }
+
+      const totalTime = (performance.now() - startTime) / 1000;
+      if (downloadModeSel.value === 'files') {
+        progress.textContent = 'Скачиваю файлы…';
+        await downloadFiles(zipEntries, format);
+        progress.textContent = `Готово! Скачано ${zipEntries.length} файлов за ${fmtTime(totalTime)}.`;
+      } else {
+        progress.textContent = 'Формирую ZIP…';
+        const zip = buildZip(zipEntries);
+        downloadBlob(zip, 'уникализированные_фото.zip');
+        progress.textContent = `Готово! Скачан архив с ${zipEntries.length} фото за ${fmtTime(totalTime)}.`;
+      }
+    } catch (err) {
+      progress.textContent = 'Ошибка: ' + err.message;
+    } finally {
+      cancelBtn.style.display = 'none';
+      processBtn.disabled = files.length === 0;
+    }
+  });
+
+  // Восстанавливаем сохранённые настройки при запуске
+  loadSettings();
+
+  // ---------- Интеграция с Telegram Mini App ----------
+  (function initTelegram() {
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (!tg || !tg.platform || tg.platform === 'unknown') return; // открыто вне Telegram
+    try {
+      tg.ready();
+      tg.expand();
+      tg.setHeaderColor && tg.setHeaderColor('#12141a');
+      tg.setBackgroundColor && tg.setBackgroundColor('#12141a');
+    } catch (e) { /* старая версия клиента — не критично */ }
+
+    // Показываем подсказку про внешний браузер (скачивание внутри Telegram ненадёжно)
+    const banner = document.getElementById('tgBanner');
+    banner.style.display = 'flex';
+    document.getElementById('tgOpenExternal').addEventListener('click', () => {
+      try { tg.openLink(location.href); } catch (e) { window.open(location.href, '_blank'); }
+    });
+  })();
+})();
+</script>
+</body>
+</html>
